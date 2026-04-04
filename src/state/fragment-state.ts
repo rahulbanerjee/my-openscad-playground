@@ -20,7 +20,7 @@ async function compressString(input: string): Promise<string> {
   }).pipeThrough(new CompressionStream('gzip'))).arrayBuffer())));
 }
 
-async function decompressString(compressedInput: string): Promise<string> {
+export async function decompressString(compressedInput: string): Promise<string> {
   return new TextDecoder().decode(await new Response(new ReadableStream({
     start(controller) {
       controller.enqueue(Uint8Array.from(atob(compressedInput), c => c.charCodeAt(0)));

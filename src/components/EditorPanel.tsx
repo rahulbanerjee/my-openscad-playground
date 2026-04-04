@@ -1,6 +1,6 @@
 // Portions of this file are Copyright 2021 Google LLC, and licensed under GPL2+. See COPYING.
 
-import React, { CSSProperties, useContext, useRef, useState } from 'react';
+import React, { CSSProperties, useContext, useRef, useState, useEffect } from 'react';
 import Editor, { loader, Monaco } from '@monaco-editor/react';
 import openscadEditorOptions from '../language/openscad-editor-options.ts';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -35,6 +35,7 @@ export default function EditorPanel({className, style}: {className?: string, sty
   if (!model) throw new Error('No model');
 
   const menu = useRef<Menu>(null);
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const state = model.state;
 
@@ -75,6 +76,24 @@ export default function EditorPanel({className, style}: {className?: string, sty
     });
     setEditor(editor)
   }
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleEditorChange = (value: string | undefined) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      model.source = value ?? '';
+    }, 10000); // 10 second debounce
+  };
 
   return (
     <div className={`editor-panel ${className ?? ''}`} style={{
@@ -174,7 +193,7 @@ export default function EditorPanel({className, style}: {className?: string, sty
             theme="vs-dark"
             path={state.params.activePath}
             value={model.source}
-            onChange={s => model.source = s ?? ''}
+            onChange={handleEditorChange}
             onMount={onMount} // TODO: This looks a bit silly, does it trigger a re-render??
             options={{
               ...openscadEditorOptions,
@@ -184,10 +203,10 @@ export default function EditorPanel({className, style}: {className?: string, sty
           />
         )}
         {!isMonacoSupported && (
-          <InputTextarea 
+          <InputTextarea
             className="openscad-editor absolute-fill"
             value={model.source}
-            onChange={s => model.source = s.target.value ?? ''}  
+            onChange={e => handleEditorChange(e.target.value)}
           />
         )}
       </div>

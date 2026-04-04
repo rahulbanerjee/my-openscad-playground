@@ -5,6 +5,8 @@ import { MultiLayoutComponentId, SingleLayoutComponentId, State, StatePersister 
 import { VALID_EXPORT_FORMATS_2D, VALID_EXPORT_FORMATS_3D } from './formats.ts';
 import { bubbleUpDeepMutations } from "./deep-mutate.ts";
 import { downloadUrl, fetchSource, formatBytes, formatMillis, readFileAsDataURL } from '../utils.ts'
+import { encodeStateParamsAsFragment, decompressString } from './fragment-state.ts';
+import { createInitialState, defaultSourcePath } from './initial-state.ts';
 
 import JSZip from 'jszip';
 import { ProcessStreams } from "../runner/openscad-runner.ts";
@@ -326,6 +328,81 @@ export class Model {
         const file = new File([blob], 'project.zip');
         downloadUrl(URL.createObjectURL(file), file.name);
       });
+    }
+  }
+
+  async saveToServer(url: string) {
+    try {
+      const compressed = await encodeStateParamsAsFragment(this.state);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ data: compressed })
+      });
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to save to server:', err);
+      throw err;
+    }
+  }
+
+  async loadFromServer(url: string) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      const { data } = await response.json();
+
+      // Decode the state from the compressed format
+      const decompressed = await decompressString(data);
+      const obj = JSON.parse(decompressed);
+
+      const {params, view, preview} = obj;
+
+      this.setState({
+        ...this.state,
+        params: {
+          activePath: params.activePath,
+          sources: params.sources,
+          vars: params.vars,
+          features: params.features || [],
+          exportFormat2D: params.exportFormat2D || 'svg',
+          exportFormat3D: params.exportFormat3D || 'stl',
+          extruderColors: params.extruderColors,
+        },
+        view: {
+          logs: view.logs,
+          extruderPickerVisibility: view.extruderPickerVisibility,
+          layout: view.layout,
+          collapsedCustomizerTabs: view.collapsedCustomizerTabs,
+          color: view.color,
+          showAxes: view.showAxes,
+          lineNumbers: view.lineNumbers,
+        },
+        preview: preview ? {
+          thumbhash: preview.thumbhash,
+          blurhash: preview.blurhash,
+        } : undefined,
+        // Clear transient state
+        lastCheckerRun: undefined,
+        output: undefined,
+        export: undefined,
+        currentRunLogs: undefined,
+        error: undefined,
+        rendering: undefined,
+        previewing: undefined,
+        exporting: undefined,
+      });
+
+      this.processSource();
+      return true;
+    } catch (err) {
+      console.error('Failed to load from server:', err);
+      throw err;
     }
   }
 

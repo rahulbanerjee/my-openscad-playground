@@ -1,6 +1,6 @@
 // Portions of this file are Copyright 2021 Google LLC, and licensed under GPL2+. See COPYING.
 
-import React, { CSSProperties, useContext, useRef } from 'react';
+import React, { CSSProperties, useContext, useRef, useState } from 'react';
 import { ModelContext } from './contexts.ts';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { Button } from 'primereact/button';
@@ -11,14 +11,18 @@ import HelpMenu from './HelpMenu.tsx';
 import ExportButton from './ExportButton.tsx';
 import SettingsMenu from './SettingsMenu.tsx';
 import MultimaterialColorsDialog from './MultimaterialColorsDialog.tsx';
+import { InputText } from 'primereact/inputtext';
 
 
 export default function Footer({style}: {style?: CSSProperties}) {
   const model = useContext(ModelContext);
   if (!model) throw new Error('No model');
   const state = model.state;
-  
+
   const toast = useRef<Toast>(null);
+  const [serverUrl, setServerUrl] = useState('http://vm-dev:8284');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const severityByMarkerSeverity = new Map<monaco.MarkerSeverity, 'danger' | 'warning' | 'info'>([
     [monaco.MarkerSeverity.Error, 'danger'],
@@ -37,7 +41,36 @@ export default function Footer({style}: {style?: CSSProperties}) {
 
 
   const maxMarkerSeverity = markers.length == 0 ? undefined : markers.map(m => m.severity).reduce((a, b) => Math.max(a, b));
-  
+
+  const showSuccess = (message: string) => {
+    toast.current?.show({ severity: 'success', summary: 'Success', detail: message, life: 3000 });
+  };
+  const showError = (message: string) => {
+    toast.current?.show({ severity: 'error', summary: 'Error', detail: message, life: 5000 });
+  };
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await model.saveToServer(`${serverUrl}/save`);
+      showSuccess('Project saved successfully');
+    } catch (err) {
+      showError(`Failed to save: ${err}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  const handleLoad = async () => {
+    setIsLoading(true);
+    try {
+      await model.loadFromServer(`${serverUrl}/load`);
+      showSuccess('Project loaded successfully');
+    } catch (err) {
+      showError(`Failed to load: ${err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return <>
     <ProgressBar mode="indeterminate"
                 style={{
@@ -94,6 +127,34 @@ export default function Footer({style}: {style?: CSSProperties}) {
           {getBadge(monaco.MarkerSeverity.Warning)}
           {getBadge(monaco.MarkerSeverity.Info)}
         </Button>}
+
+      <InputText
+        value={serverUrl}
+        onChange={(e) => setServerUrl(e.target.value)}
+        placeholder="Server URL"
+        style={{ width: '200px' }}
+      />
+
+      <Button
+        type="button"
+        icon="pi pi-save"
+        onClick={handleSave}
+        disabled={isSaving}
+        className="p-button-sm"
+        label={isSaving ? 'Saving...' : 'Save'}
+        tooltip="Save project to server"
+      />
+
+      <Button
+        type="button"
+        icon="pi pi-cloud-download"
+        onClick={handleLoad}
+        disabled={isLoading}
+        className="p-button-sm"
+        label={isLoading ? 'Loading...' : 'Load'}
+        tooltip="Load project from server"
+        severity="secondary"
+      />
 
       <div style={{flex: 1}}></div>
 
