@@ -1,9 +1,6 @@
 body {
   margin: 0;
   font-family: var(--font-family);
-  /* font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif; */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -11,4 +8,22 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Dark theme for Monaco editor - needs strong selectors */
+.monaco-editor,
+.monaco-editor-background,
+.lines-content.monaco-editor-background,
+.monaco-editor .lines-content,
+.monaco-editor .view-lines {
+  background-color: #1e1e1e !important;
+}
+
+.monaco-editor .margin {
+  background-color: #1e1e1e !important;
+}
+
+/* Ensure the editor container has dark background */
+.openscad-editor {
+  background-color: #1e1e1e !important;
 }
