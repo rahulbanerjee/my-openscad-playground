@@ -70,6 +70,22 @@ export default function Footer({style}: {style?: CSSProperties}) {
       setIsLoading(false);
     }
   };
+  const handleLoadModel = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${serverUrl}/model`);
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      const content = await response.text();
+      model.source = content;
+      showSuccess('Model loaded from model.txt');
+    } catch (err) {
+      showError(`Failed to load model: ${err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return <>
     <ProgressBar mode="indeterminate"
@@ -154,6 +170,17 @@ export default function Footer({style}: {style?: CSSProperties}) {
         label={isLoading ? 'Loading...' : 'Load'}
         tooltip="Load project from server"
         severity="secondary"
+      />
+
+      <Button
+        type="button"
+        icon="pi pi-file-import"
+        onClick={handleLoadModel}
+        disabled={isLoading}
+        className="p-button-sm"
+        label={isLoading ? 'Loading...' : 'Model'}
+        tooltip="Load model.txt into editor"
+        severity="help"
       />
 
       <div style={{flex: 1}}></div>
